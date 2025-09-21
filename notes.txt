@@ -1,0 +1,18 @@
+# Essential Competition Day Commands
+# Get my tools:
+git clone https://github.com/YourUsername/blue-team-toolkit.git
+cd blue-team-toolkit && chmod +x *.sh
+
+# Critical System Inspection (if something feels wrong):
+sudo netstat -tulnp                              # Check for weird connections
+sudo find / -name "*.sh" -mmin -5 2>/dev/null    # Find scripts modified in last 5 min
+sudo find / -type f -mmin -5 2>/dev/null | grep -Ev "/proc|/sys|/dev" # Find any new file
+ps aux | grep -E "(curl|wget|python3|python|perl|nc|netcat|nmap)" # Look for bad processes
+systemctl status --type=service --state=running  # List all running services
+
+# Incident Response Commands:
+sudo firewall-cmd --permanent --zone=public --add-rich-rule='rule family="ipv4" source address="X.X.X.X" reject' # Block IP
+sudo firewall-cmd --reload
+pkill -f "malicious_process_name"                # Kill a process by name
+sudo userdel bad_user                            # Delete a user
+sudo crontab -u suspect_user -l                  # Check a user's cron jobs
