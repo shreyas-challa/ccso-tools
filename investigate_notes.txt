@@ -1,0 +1,86 @@
+# BLUE TEAM INCIDENT RESPONSE NOTES
+# Use these commands AFTER an investigation script finds evidence.
+# Always run investigation scripts first to know exactly what to target.
+
+#######################################################################
+### IF YOU FIND A MALICIOUS USER (from investigate_user.sh output) ###
+#######################################################################
+
+# 1. MANUALLY KILL THEIR PROCESSES (Safer than a script)
+#    Find the Process ID (PID) from the investigate script output.
+sudo kill -9 <PID>                 # Kill a specific process ID
+#    OR, to kill all processes by a user (use cautiously):
+sudo pkill -u "bad_user"
+
+# 2. REMOVE THEIR CRON JOBS
+sudo crontab -r -u "bad_user"      # Completely wipe their cron tab
+
+# 3. DELETE THE USER AND THEIR FILES (ONLY if sure!)
+sudo userdel -r "bad_user"         # The -r flag removes their home directory
+
+# 4. CHECK/REMOVE THEIR SUDO ACCESS
+sudo nano /etc/sudoers             # Open the sudoers file. Look for the username and delete the line.
+# OR check the /etc/sudoers.d/ directory for files mentioning the user.
+
+#################################################################
+### IF YOU FIND A MALICIOUS CRON JOB (from investigate_cron.sh) ###
+#################################################################
+
+# 1. FIND WHERE THE CRON JOB IS DEFINED:
+#    - For a user's cron: It's in their personal crontab.
+#    - For system cron: It's in a file in /etc/cron.d/ or /etc/crontab.
+
+# 2. EDIT THE CORRECT FILE TO REMOVE JUST THE BAD LINE:
+#    If it's in a user's crontab:
+sudo crontab -e -u "username"      # Edit the user's cron, delete the bad line, save and exit.
+
+#    If it's a system file in /etc/cron.d/:
+sudo nano /etc/cron.d/suspicious_file  # Delete just the bad line, save and exit.
+
+# 3. AFTER EDITING, VERIFY IT'S GONE:
+sudo crontab -l -u "username"      # List the user's cron to verify
+cat /etc/cron.d/suspicious_file    # Check the system file
+
+#######################################################################
+### IF YOU FIND A MALICIOUS SSH KEY (from investigate_ssh_keys.sh) ###
+#######################################################################
+
+# 1. NAVIGATE TO THE USER'S SSH DIRECTORY:
+cd ~username/.ssh/          # Example: cd ~git/.ssh/
+
+# 2. EDIT THE authorized_keys FILE:
+sudo nano authorized_keys    # Delete ONLY the line containing the foreign/public key you don't recognize.
+
+# 3. VERIFY THE CHANGE:
+cat authorized_keys          # Check the file to ensure only your keys remain.
+
+####################################
+### GENERAL SYSTEM SANITY CHECKS ###
+####################################
+
+# 1. ALWAYS CHANGE PASSWORDS AFTER AN INCIDENT:
+sudo passwd "username"       # Change password for a specific user
+sudo passwd root             # Don't forget to change the root password!
+
+# 2. CHECK FOR ROGUE NETWORK CONNECTIONS:
+sudo netstat -tulnp | grep ESTABLISHED  # See active connections
+sudo ss -tulnp                          # Another way to see connections (modern)
+
+# 3. CHECK FOR UNAUTHORIZED SERVICES:
+systemctl list-units --type=service --state=running  # List all running services
+
+# 4. LOOK FOR NEWLY CREATED FILES AS ROOT:
+sudo find / -uid 0 -type f -mtime -1 2>/dev/null | head -20  # Files owned by root, modified in last day
+
+# 5. RESTART SERVICES THAT MAY HAVE BEEN COMPROMISED:
+sudo systemctl restart gitea    # Restart Gitea
+sudo systemctl restart sshd     # Restart SSH
+
+####################################
+### REMEMBER: DOCUMENT EVERYTHING ###
+####################################
+# - Time of incident
+# - Attacker's IP address (from logs)
+# - Malicious username/file/process found
+# - Actions you took (e.g., "Blocked IP 1.2.3.4 in firewall", "Deleted user backdoor")
+# This is how you score points!
